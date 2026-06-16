@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     const display = document.getElementById("journey-name-display");
     if (display) {
-      display.innerText = `test455 - ${formatHours({ min, max })}`;
+      display.innerText = `test454 - ${formatHours({ min, max })}`;
     }
   }
 
@@ -194,13 +194,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- 2. Drag & Drop + Click-to-Place Initialization ---
-  let selectedTactic = null; // For click-to-place fallback
-
+  // --- 2. Drag & Drop Initialization ---
   document.querySelectorAll(".tactic-item").forEach((tactic) => {
-    // Drag support (normal browsers)
     tactic.addEventListener("dragstart", (e) => {
       e.dataTransfer.setData("type", tactic.dataset.type);
+      // Get just the text node (ignoring the icon span)
       const textNode = Array.from(tactic.childNodes).find(
         (n) => n.nodeType === 3 && n.textContent.trim().length > 0,
       );
@@ -208,26 +206,6 @@ document.addEventListener("DOMContentLoaded", () => {
         "name",
         textNode ? textNode.textContent.trim() : tactic.innerText,
       );
-    });
-
-    // Click-to-select (Fireglass fallback)
-    tactic.addEventListener("click", () => {
-      document
-        .querySelectorAll(".tactic-item")
-        .forEach((t) => t.classList.remove("tactic-selected"));
-      if (selectedTactic && selectedTactic.type === tactic.dataset.type) {
-        // Clicking same tactic again deselects it
-        selectedTactic = null;
-        return;
-      }
-      const textNode = Array.from(tactic.childNodes).find(
-        (n) => n.nodeType === 3 && n.textContent.trim().length > 0,
-      );
-      selectedTactic = {
-        type: tactic.dataset.type,
-        name: textNode ? textNode.textContent.trim() : tactic.innerText,
-      };
-      tactic.classList.add("tactic-selected");
     });
   });
 
@@ -397,7 +375,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateLayout();
   });
 
-  // Handle node clicks, deletion, and click-to-place
+  // Handle node clicks and deletion
   gridContainer.addEventListener("click", (e) => {
     if (e.target.classList.contains("delete-btn")) {
       const nodeId = e.target.parentElement.id;
@@ -410,51 +388,6 @@ document.addEventListener("DOMContentLoaded", () => {
         e.target.closest(".add-rule-btn") || e.target.closest(".rule-block");
       const connIdx = el.dataset.index;
       openRuleModal(connIdx);
-    } else if (selectedTactic) {
-      // Click-to-place: place selected tactic onto a lane dropzone
-      const zone = e.target.closest(".lane-dropzone");
-      if (!zone) return;
-
-      const zoneRect = zone.getBoundingClientRect();
-      const clickX = Math.max(0, e.clientX - zoneRect.left);
-      const totalSpan = endDate - startDate;
-      const clickRatio = clickX / zoneRect.width;
-      const nodeTimestamp = startDate.getTime() + totalSpan * clickRatio;
-
-      let nodeDuration = 7;
-      if (currentMode === "quarterly") {
-        const clickDate = new Date(nodeTimestamp);
-        const monthStart = new Date(
-          clickDate.getFullYear(),
-          clickDate.getMonth(),
-          1,
-        );
-        const monthEnd = new Date(
-          clickDate.getFullYear(),
-          clickDate.getMonth() + 1,
-          0,
-        );
-        nodeDuration = Math.round(
-          (monthEnd - monthStart) / (1000 * 60 * 60 * 24),
-        );
-      }
-
-      nodesData.push({
-        id: "node-" + Math.random().toString(36).substring(2, 9),
-        laneId: zone.parentElement.id,
-        type: selectedTactic.type,
-        name: selectedTactic.name,
-        timestamp: nodeTimestamp,
-        durationDays: nodeDuration,
-        isStandalone: currentMode === "weekly",
-      });
-
-      // Deselect
-      selectedTactic = null;
-      document
-        .querySelectorAll(".tactic-item")
-        .forEach((t) => t.classList.remove("tactic-selected"));
-      updateLayout();
     }
   });
 
@@ -1629,34 +1562,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("init-start").value = "";
       document.getElementById("init-end").value = "";
       document.getElementById("init-color").value = "#3b82f6";
-      // Reset color swatch selection
-      document
-        .querySelectorAll("#init-color-swatches .color-swatch")
-        .forEach((s) => {
-          s.style.border =
-            s.dataset.color === "#3b82f6"
-              ? "3px solid #1e293b"
-              : "3px solid transparent";
-        });
       initEditModal.style.display = "flex";
-    });
-
-  // Color swatch click handler
-  document
-    .querySelectorAll("#init-color-swatches .color-swatch")
-    .forEach((swatch) => {
-      swatch.addEventListener("click", (e) => {
-        e.preventDefault();
-        const color = swatch.dataset.color;
-        document.getElementById("init-color").value = color;
-        // Update visual selection
-        document
-          .querySelectorAll("#init-color-swatches .color-swatch")
-          .forEach((s) => {
-            s.style.border = "3px solid transparent";
-          });
-        swatch.style.border = "3px solid #1e293b";
-      });
     });
 
   document
@@ -1669,59 +1575,15 @@ document.addEventListener("DOMContentLoaded", () => {
     .getElementById("save-initiative-btn")
     .addEventListener("click", () => {
       const id = document.getElementById("edit-init-id").value;
-      const name = document.getElementById("init-name").value.trim();
-      const start = document.getElementById("init-start").value.trim();
-      const end = document.getElementById("init-end").value.trim();
+      const name = document.getElementById("init-name").value;
+      const start = document.getElementById("init-start").value;
+      const end = document.getElementById("init-end").value;
       const color = document.getElementById("init-color").value;
 
-      window._dbg(
-        'SAVE clicked: name="' +
-          name +
-          '" start="' +
-          start +
-          '" end="' +
-          end +
-          '" color="' +
-          color +
-          '"',
-      );
-      window._dbg(
-        "init-start type=" +
-          document.getElementById("init-start").type +
-          " init-end type=" +
-          document.getElementById("init-end").type,
-      );
-      // Validate
-      const missing = [];
-      if (!name) missing.push("Initiative Name");
-      if (!start) missing.push("Start Date");
-      if (!end) missing.push("End Date");
-
-      // Validate date format if provided
-      if (start && isNaN(new Date(start).getTime()))
-        missing.push("Start Date (invalid format, use YYYY-MM-DD)");
-      if (end && isNaN(new Date(end).getTime()))
-        missing.push("End Date (invalid format, use YYYY-MM-DD)");
-
-      if (missing.length > 0) {
-        let errEl = document.getElementById("init-error-msg");
-        if (!errEl) {
-          errEl = document.createElement("div");
-          errEl.id = "init-error-msg";
-          errEl.style.cssText =
-            "color:#ef4444;font-size:14px;margin-bottom:10px;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;";
-          const actionsDiv = document.querySelector(
-            "#edit-initiative-modal .modal-actions",
-          );
-          actionsDiv.parentNode.insertBefore(errEl, actionsDiv);
-        }
-        errEl.textContent = "⚠ " + missing.join(", ");
+      if (!name || !start || !end) {
+        console.warn("Please fill out all fields.");
         return;
       }
-
-      // Clear any previous error
-      const existingErr = document.getElementById("init-error-msg");
-      if (existingErr) existingErr.textContent = "";
 
       if (id) {
         // Edit existing
