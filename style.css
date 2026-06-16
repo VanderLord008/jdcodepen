@@ -1076,10 +1076,3 @@ body.simulation-mode .connection-canvas path.sim-active {
   margin-top: -10px;
   white-space: nowrap;
 }
-
-/* Click-to-place: selected tactic highlight */
-.tactic-item.tactic-selected {
-  outline: 2px solid #3b82f6;
-  outline-offset: -2px;
-  background: rgba(59, 130, 246, 0.1);
-}
